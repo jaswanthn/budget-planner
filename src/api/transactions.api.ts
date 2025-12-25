@@ -12,7 +12,7 @@ export async function createTransaction(input: {
       bucket_id: input.bucketId,
       amount: input.amount,
       note: input.note,
-      occurred_at: input.occurredAt
+      occurred_at: input.occurredAt,
     })
     .select()
     .single();

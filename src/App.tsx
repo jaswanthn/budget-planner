@@ -14,13 +14,27 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
   useEffect(() => {
-    getSession().then((s) => {
-      setSession(s);
-      setLoading(false);
-    });
+    const checkSession = async () => {
+       // Timeout after 5 seconds to prevent hanging
+       const timeoutPromise = new Promise((resolve) => 
+         setTimeout(() => resolve(null), 5000)
+       );
+
+       try {
+         const s = await Promise.race([getSession(), timeoutPromise]);
+         setSession(s);
+       } catch (err) {
+         console.error("Session check failed", err);
+         setSession(null);
+       } finally {
+         setLoading(false);
+       }
+    };
+
+    checkSession();
   }, []);
 
-  if (loading) return null;
+  if (loading) return <div className="flex items-center justify-center min-h-screen text-foreground">Loading App...</div>;
 
   if (!session) {
     return <Auth />;

@@ -3,14 +3,11 @@ import { BudgetData, Transaction } from "@/types/budget";
 import { fetchBuckets, fetchTransactions } from "@/api/budget.api";
 import { createTransaction } from "@/api/transactions.api";
 import { supabase } from "@/lib/supabase";
-import {
-  fetchLatestIncome,
-  saveIncome
-} from "@/api/income.api";
+import { fetchLatestIncome, saveIncome } from "@/api/income.api";
 import {
   fetchRecurringExpenses,
   addRecurringExpense,
-  disableRecurringExpense
+  disableRecurringExpense,
 } from "@/api/recurringExpenses.api";
 
 const STORAGE_KEY = "budget_planner_v1";
@@ -31,12 +28,10 @@ export function useBudgetStore() {
       const parsed = JSON.parse(saved);
       return {
         ...parsed,
-        buckets: Array.isArray(parsed.buckets)
-          ? parsed.buckets
-          : [],
+        buckets: Array.isArray(parsed.buckets) ? parsed.buckets : [],
         transactions: Array.isArray(parsed.transactions)
           ? parsed.transactions
-          : []
+          : [],
       };
     } catch {
       return DEFAULT_DATA;
@@ -54,10 +49,9 @@ export function useBudgetStore() {
    * Sync from Supabase (READ)
    * --------------------------------------*/
   useEffect(() => {
-  const {
-    data: { subscription }
-  } = supabase.auth.onAuthStateChange(
-    async (_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session) return;
 
       try {
@@ -75,47 +69,35 @@ export function useBudgetStore() {
             id: b.id,
             name: b.name,
             limit: b.monthly_limit,
-            spent:
-              transactionRows
-                .filter(
-                  (t: any) => t.bucket_id === b.id
-                )
-                .reduce(
-                  (sum: number, t: any) =>
-                    sum + t.amount,
-                  0
-                )
+            spent: transactionRows
+              .filter((t: any) => t.bucket_id === b.id)
+              .reduce((sum: number, t: any) => sum + t.amount, 0),
           })),
           transactions: transactionRows.map((t: any) => ({
             id: t.id,
             amount: t.amount,
             bucket:
-              bucketRows.find(
-                (b: any) => b.id === t.bucket_id
-              )?.name ?? "Unknown",
+              bucketRows.find((b: any) => b.id === t.bucket_id)?.name ??
+              "Unknown",
             note: t.note ?? "",
-            date: t.occurred_at
+            date: t.occurred_at,
           })),
           income: incomeRow?.monthly_income ?? prev.income,
           recurringExpenses: recurringExpenseRows.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        amount: r.amount
-      })),
+            id: r.id,
+            name: r.name,
+            amount: r.amount,
+          })),
         }));
-
-
       } catch (e) {
         console.warn("Backend sync failed", e);
       }
-    }
-  );
+    });
 
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
-
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   /* ----------------------------------------
    * Write transaction (OPTIMISTIC + BACKEND)
@@ -125,9 +107,7 @@ export function useBudgetStore() {
     bucket: string;
     note?: string;
   }) {
-    const bucketRecord = data.buckets.find(
-      (b) => b.name === input.bucket
-    );
+    const bucketRecord = data.buckets.find((b) => b.name === input.bucket);
 
     if (!bucketRecord) {
       console.error("Bucket not found");
@@ -139,21 +119,19 @@ export function useBudgetStore() {
       amount: input.amount,
       bucket: input.bucket,
       note: input.note ?? "",
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      type: "expense",
+      category: "shopping-bag", // Default icon
+      tags: [],
     };
 
     // Optimistic UI update
     setData((prev) => ({
       ...prev,
       buckets: prev.buckets.map((b) =>
-        b.name === input.bucket
-          ? { ...b, spent: b.spent + input.amount }
-          : b
+        b.name === input.bucket ? { ...b, spent: b.spent + input.amount } : b
       ),
-      transactions: [
-        optimisticTx,
-        ...(prev.transactions ?? [])
-      ],
+      transactions: [optimisticTx, ...(prev.transactions ?? [])],
     }));
 
     try {
@@ -161,49 +139,41 @@ export function useBudgetStore() {
         bucketId: bucketRecord.id,
         amount: input.amount,
         note: input.note,
-        occurredAt: new Date().toISOString().slice(0, 10)
+        occurredAt: new Date().toISOString().slice(0, 10),
       });
     } catch (e) {
-      console.error(
-        "Failed to persist transaction to Supabase",
-        e
-      );
+      console.error("Failed to persist transaction to Supabase", e);
       // NOTE: rollback can be added later
     }
   }
 
   async function setIncome(monthlyIncome: number) {
-  await saveIncome(monthlyIncome);
+    await saveIncome(monthlyIncome);
 
-  setData((prev) => ({
-    ...prev,
-    income: monthlyIncome
-  }));
+    setData((prev) => ({
+      ...prev,
+      income: monthlyIncome,
+    }));
   }
 
-  async function addFixedExpense(input: {
-  name: string;
-  amount: number;
-}) {
-  await addRecurringExpense(input);
+  async function addFixedExpense(input: { name: string; amount: number }) {
+    await addRecurringExpense(input);
 
-  const rows = await fetchRecurringExpenses();
-  setData((prev) => ({
-    ...prev,
-    recurringExpenses: rows
-  }));
-}
+    const rows = await fetchRecurringExpenses();
+    setData((prev) => ({
+      ...prev,
+      recurringExpenses: rows,
+    }));
+  }
 
-async function removeFixedExpense(id: string) {
-  await disableRecurringExpense(id);
+  async function removeFixedExpense(id: string) {
+    await disableRecurringExpense(id);
 
-  setData((prev) => ({
-    ...prev,
-    recurringExpenses: prev.recurringExpenses.filter(
-      (e: any) => e.id !== id
-    )
-  }));
-}
+    setData((prev) => ({
+      ...prev,
+      recurringExpenses: prev.recurringExpenses.filter((e: any) => e.id !== id),
+    }));
+  }
 
   return {
     data,
