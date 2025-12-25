@@ -3,13 +3,23 @@ import { BudgetData, Transaction } from "@/types/budget";
 import { fetchBuckets, fetchTransactions } from "@/api/budget.api";
 import { createTransaction } from "@/api/transactions.api";
 import { supabase } from "@/lib/supabase";
+import {
+  fetchLatestIncome,
+  saveIncome
+} from "@/api/income.api";
+import {
+  fetchRecurringExpenses,
+  addRecurringExpense,
+  disableRecurringExpense
+} from "@/api/recurringExpenses.api";
 
 const STORAGE_KEY = "budget_planner_v1";
 
 const DEFAULT_DATA: BudgetData = {
-  income: 180000,
+  income: 0,
   buckets: [],
-  transactions: []
+  transactions: [],
+  recurringExpenses: [],
 };
 
 export function useBudgetStore() {
@@ -51,15 +61,16 @@ export function useBudgetStore() {
       if (!session) return;
 
       try {
-        const [bucketRows, transactionRows] =
+        const [bucketRows, transactionRows, incomeRow, recurringExpenseRows] =
           await Promise.all([
             fetchBuckets(),
-            fetchTransactions()
+            fetchTransactions(),
+            fetchLatestIncome(),
+            fetchRecurringExpenses(),
           ]);
 
         setData((prev) => ({
           ...prev,
-
           buckets: bucketRows.map((b: any) => ({
             id: b.id,
             name: b.name,
@@ -75,7 +86,6 @@ export function useBudgetStore() {
                   0
                 )
           })),
-
           transactions: transactionRows.map((t: any) => ({
             id: t.id,
             amount: t.amount,
@@ -85,8 +95,16 @@ export function useBudgetStore() {
               )?.name ?? "Unknown",
             note: t.note ?? "",
             date: t.occurred_at
-          }))
+          })),
+          income: incomeRow?.monthly_income ?? prev.income,
+          recurringExpenses: recurringExpenseRows.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        amount: r.amount
+      })),
         }));
+
+
       } catch (e) {
         console.warn("Backend sync failed", e);
       }
@@ -135,7 +153,7 @@ export function useBudgetStore() {
       transactions: [
         optimisticTx,
         ...(prev.transactions ?? [])
-      ]
+      ],
     }));
 
     try {
@@ -154,8 +172,44 @@ export function useBudgetStore() {
     }
   }
 
+  async function setIncome(monthlyIncome: number) {
+  await saveIncome(monthlyIncome);
+
+  setData((prev) => ({
+    ...prev,
+    income: monthlyIncome
+  }));
+  }
+
+  async function addFixedExpense(input: {
+  name: string;
+  amount: number;
+}) {
+  await addRecurringExpense(input);
+
+  const rows = await fetchRecurringExpenses();
+  setData((prev) => ({
+    ...prev,
+    recurringExpenses: rows
+  }));
+}
+
+async function removeFixedExpense(id: string) {
+  await disableRecurringExpense(id);
+
+  setData((prev) => ({
+    ...prev,
+    recurringExpenses: prev.recurringExpenses.filter(
+      (e: any) => e.id !== id
+    )
+  }));
+}
+
   return {
     data,
-    addTransaction
+    addTransaction,
+    setIncome,
+    addFixedExpense,
+    removeFixedExpense,
   };
 }

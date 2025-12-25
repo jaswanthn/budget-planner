@@ -3,6 +3,7 @@ import Layout from "./app/Layout";
 import { useEffect, useState } from "react";
 import { getSession } from "@/api/auth.api";
 import Auth from "@/pages/Auth";
+import Profile from "@/pages/Profile"
 
 import Home from "./pages/Home";
 import Buckets from "./pages/Buckets";
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/buckets" element={<Buckets />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/review" element={<Review />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Layout>
     </BrowserRouter>
