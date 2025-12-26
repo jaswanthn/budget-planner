@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BudgetData, Transaction } from "@/types/budget";
 import { fetchBuckets, fetchTransactions } from "@/api/budget.api";
-import { createTransaction } from "@/api/transactions.api";
+import { createTransaction, deleteTransaction } from "@/api/transactions.api";
 import { supabase } from "@/lib/supabase";
 import { fetchLatestIncome, saveIncome } from "@/api/income.api";
 import {
@@ -9,11 +9,13 @@ import {
   addRecurringExpense,
   disableRecurringExpense,
 } from "@/api/recurringExpenses.api";
+import { fetchLatestSavingsGoal, saveSavingsGoal } from "@/api/savingsGoal.api";
 
 const STORAGE_KEY = "budget_planner_v1";
 
 const DEFAULT_DATA: BudgetData = {
   income: 0,
+  savingsGoal: 0,
   buckets: [],
   transactions: [],
   recurringExpenses: [],
@@ -23,7 +25,6 @@ export function useBudgetStore() {
   const [data, setData] = useState<BudgetData>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return DEFAULT_DATA;
-
     try {
       const parsed = JSON.parse(saved);
       return {
@@ -32,6 +33,8 @@ export function useBudgetStore() {
         transactions: Array.isArray(parsed.transactions)
           ? parsed.transactions
           : [],
+        savingsGoal:
+          typeof parsed.savingsGoal === "number" ? parsed.savingsGoal : 0,
       };
     } catch {
       return DEFAULT_DATA;
@@ -41,9 +44,9 @@ export function useBudgetStore() {
   /* ----------------------------------------
    * Persist locally (cache / offline)
    * --------------------------------------*/
-  // useEffect(() => {
-  //   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  // }, [data]);
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [data]);
 
   /* ----------------------------------------
    * Sync from Supabase (READ)
@@ -55,13 +58,19 @@ export function useBudgetStore() {
       if (!session) return;
 
       try {
-        const [bucketRows, transactionRows, incomeRow, recurringExpenseRows] =
-          await Promise.all([
-            fetchBuckets(),
-            fetchTransactions(),
-            fetchLatestIncome(),
-            fetchRecurringExpenses(),
-          ]);
+        const [
+          bucketRows,
+          transactionRows,
+          incomeRow,
+          recurringExpenseRows,
+          savingsGoalRow,
+        ] = await Promise.all([
+          fetchBuckets(),
+          fetchTransactions(),
+          fetchLatestIncome(),
+          fetchRecurringExpenses(),
+          fetchLatestSavingsGoal(),
+        ]);
 
         setData((prev) => ({
           ...prev,
@@ -81,8 +90,12 @@ export function useBudgetStore() {
               "Unknown",
             note: t.note ?? "",
             date: t.occurred_at,
+            type: t.type || "expense",
+            category: t.category || "shopping-bag",
+            tags: t.tags || [],
           })),
           income: incomeRow?.monthly_income ?? prev.income,
+          savingsGoal: savingsGoalRow?.monthly_goal ?? prev.savingsGoal,
           recurringExpenses: recurringExpenseRows.map((r: any) => ({
             id: r.id,
             name: r.name,
@@ -100,28 +113,26 @@ export function useBudgetStore() {
   }, []);
 
   /* ----------------------------------------
-   * Write transaction (OPTIMISTIC + BACKEND)
+   * Write actions
    * --------------------------------------*/
+
   async function addTransaction(input: {
     amount: number;
     bucket: string;
     note?: string;
   }) {
     const bucketRecord = data.buckets.find((b) => b.name === input.bucket);
+    if (!bucketRecord) return;
 
-    if (!bucketRecord) {
-      console.error("Bucket not found");
-      return;
-    }
-
+    const optimisticId = Date.now();
     const optimisticTx: Transaction = {
-      id: Date.now(),
+      id: optimisticId,
       amount: input.amount,
       bucket: input.bucket,
       note: input.note ?? "",
       date: new Date().toISOString(),
       type: "expense",
-      category: "shopping-bag", // Default icon
+      category: "shopping-bag",
       tags: [],
     };
 
@@ -135,50 +146,85 @@ export function useBudgetStore() {
     }));
 
     try {
-      await createTransaction({
+      const newTx = await createTransaction({
         bucketId: bucketRecord.id,
         amount: input.amount,
         note: input.note,
         occurredAt: new Date().toISOString().slice(0, 10),
       });
+
+      if (newTx && newTx.id) {
+        setData((prev) => ({
+          ...prev,
+          transactions: prev.transactions.map((t) =>
+            t.id === optimisticId ? { ...t, id: newTx.id } : t
+          ),
+        }));
+      }
     } catch (e) {
-      console.error("Failed to persist transaction to Supabase", e);
-      // NOTE: rollback can be added later
+      console.error("Failed to persist transaction", e);
+    }
+  }
+
+  async function deleteTransactionAction(id: string | number) {
+    const txToDelete = data.transactions.find(
+      (tx) => String(tx.id) === String(id)
+    );
+    if (!txToDelete) return;
+
+    // Optimistic Update
+    setData((prev) => {
+      const filtered = prev.transactions.filter(
+        (t) => String(t.id) !== String(id)
+      );
+      return {
+        ...prev,
+        buckets: prev.buckets.map((b) =>
+          b.name === txToDelete.bucket
+            ? { ...b, spent: b.spent - txToDelete.amount }
+            : b
+        ),
+        transactions: filtered,
+      };
+    });
+
+    try {
+      await deleteTransaction(id);
+    } catch (e) {
+      console.error("Failed to delete transaction", e);
     }
   }
 
   async function setIncome(monthlyIncome: number) {
     await saveIncome(monthlyIncome);
-
-    setData((prev) => ({
-      ...prev,
-      income: monthlyIncome,
-    }));
+    setData((prev) => ({ ...prev, income: monthlyIncome }));
   }
 
   async function addFixedExpense(input: { name: string; amount: number }) {
     await addRecurringExpense(input);
-
     const rows = await fetchRecurringExpenses();
-    setData((prev) => ({
-      ...prev,
-      recurringExpenses: rows,
-    }));
+    setData((prev) => ({ ...prev, recurringExpenses: rows }));
   }
 
   async function removeFixedExpense(id: string) {
     await disableRecurringExpense(id);
-
     setData((prev) => ({
       ...prev,
       recurringExpenses: prev.recurringExpenses.filter((e: any) => e.id !== id),
     }));
   }
 
+  async function setSavingsGoal(monthlySavingsGoal: number) {
+    await saveSavingsGoal(monthlySavingsGoal);
+    setData((prev) => ({ ...prev, savingsGoal: monthlySavingsGoal }));
+  }
+
   return {
     data,
     addTransaction,
+    deleteTransaction: deleteTransactionAction,
     setIncome,
+    setSavingsGoal,
     addFixedExpense,
     removeFixedExpense,
   };

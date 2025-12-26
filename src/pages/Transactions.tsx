@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FilterableTransactionList from "@/components/transactions/FilterableTransactionList";
 
 export default function Transactions() {
-  const { data, addTransaction } = useBudgetStore();
+  const { data, addTransaction, deleteTransaction } = useBudgetStore();
 
   const [amount, setAmount] = useState("");
   const [bucket, setBucket] = useState("");
@@ -110,7 +110,7 @@ export default function Transactions() {
                 </div>
              </CardHeader>
              <CardContent className="flex-1 overflow-hidden">
-                <FilterableTransactionList transactions={data.transactions} />
+                <FilterableTransactionList transactions={data.transactions} onDelete={deleteTransaction} />
              </CardContent>
           </Card>
        </div>

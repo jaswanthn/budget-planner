@@ -1,6 +1,7 @@
 import IncomeSection from "@/components/profile/IncomeSection";
 import RecurringExpensesSection from "@/components/profile/RecurringExpensesSection";
 import ProfileSummary from "@/components/profile/ProfileSummary";
+import SavingsGoalSection from "@/components/profile/SavingsGoalSection";
 
 export default function Profile() {
   return (
@@ -11,20 +12,21 @@ export default function Profile() {
         </div>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Your Profile</h1>
-          <p className="text-muted-foreground">Manage your income and fixed expenses</p>
+          <p className="text-muted-foreground">Manage your income, expenses, and savings goals</p>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Income */}
+        {/* Income & Savings Goal */}
         <div className="space-y-6">
           <IncomeSection />
-          <ProfileSummary />
+          <SavingsGoalSection />
         </div>
 
-        {/* Fixed / Recurring expenses */}
-        <div className="h-full">
+        {/* Fixed / Recurring expenses & Summary */}
+        <div className="space-y-6">
           <RecurringExpensesSection />
+          <ProfileSummary />
         </div>
       </div>
     </div>

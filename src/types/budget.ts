@@ -8,7 +8,7 @@ export interface Bucket {
 export type TransactionType = "expense" | "income";
 
 export interface Transaction {
-  id: number;
+  id: string | number;
   amount: number;
   bucket: string;
   note: string;
@@ -26,6 +26,7 @@ export interface FixedExpense {
 
 export interface BudgetData {
   income: number;
+  savingsGoal: number;
   buckets: Bucket[];
   transactions: Transaction[];
   recurringExpenses: FixedExpense[];
