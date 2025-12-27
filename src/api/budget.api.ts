@@ -19,3 +19,14 @@ export async function fetchTransactions() {
   if (error) throw error;
   return data;
 }
+
+export async function createBucket(name: string, monthlyLimit: number = 0) {
+  const { data, error } = await supabase
+    .from("buckets")
+    .insert([{ name, monthly_limit: monthlyLimit }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}

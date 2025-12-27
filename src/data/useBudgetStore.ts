@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { BudgetData, Transaction } from "@/types/budget";
-import { fetchBuckets, fetchTransactions } from "@/api/budget.api";
+import {
+  fetchBuckets,
+  fetchTransactions,
+  createBucket,
+} from "@/api/budget.api";
 import { createTransaction, deleteTransaction } from "@/api/transactions.api";
 import { supabase } from "@/lib/supabase";
 import { fetchLatestIncome, saveIncome } from "@/api/income.api";
@@ -120,9 +124,23 @@ export function useBudgetStore() {
     amount: number;
     bucket: string;
     note?: string;
+    occurredAt?: string;
   }) {
-    const bucketRecord = data.buckets.find((b) => b.name === input.bucket);
-    if (!bucketRecord) return;
+    let bucketRecord = data.buckets.find((b) => b.name === input.bucket);
+
+    if (!bucketRecord) {
+      if (data.buckets.length > 0) {
+        console.warn(
+          `Bucket "${input.bucket}" not found. Falling back to "${data.buckets[0].name}".`
+        );
+        bucketRecord = data.buckets[0];
+      } else {
+        console.error(
+          `Bucket "${input.bucket}" not found and no other buckets available. Transaction ignored.`
+        );
+        return;
+      }
+    }
 
     const optimisticId = Date.now();
     const optimisticTx: Transaction = {
@@ -130,7 +148,7 @@ export function useBudgetStore() {
       amount: input.amount,
       bucket: input.bucket,
       note: input.note ?? "",
-      date: new Date().toISOString(),
+      date: input.occurredAt || new Date().toISOString(),
       type: "expense",
       category: "shopping-bag",
       tags: [],
@@ -150,7 +168,7 @@ export function useBudgetStore() {
         bucketId: bucketRecord.id,
         amount: input.amount,
         note: input.note,
-        occurredAt: new Date().toISOString().slice(0, 10),
+        occurredAt: input.occurredAt || new Date().toISOString().slice(0, 10),
       });
 
       if (newTx && newTx.id) {
@@ -219,6 +237,28 @@ export function useBudgetStore() {
     setData((prev) => ({ ...prev, savingsGoal: monthlySavingsGoal }));
   }
 
+  async function addBucketAction(name: string) {
+    try {
+      const newBucket = await createBucket(name, 0);
+      setData((prev) => ({
+        ...prev,
+        buckets: [
+          ...prev.buckets,
+          {
+            id: newBucket.id,
+            name: newBucket.name,
+            limit: newBucket.monthly_limit,
+            spent: 0,
+          },
+        ],
+      }));
+      return newBucket;
+    } catch (e) {
+      console.error("Failed to create bucket", e);
+      throw e;
+    }
+  }
+
   return {
     data,
     addTransaction,
@@ -227,5 +267,6 @@ export function useBudgetStore() {
     setSavingsGoal,
     addFixedExpense,
     removeFixedExpense,
+    addBucket: addBucketAction,
   };
 }

@@ -1,6 +1,5 @@
 import IncomeSection from "@/components/profile/IncomeSection";
 import RecurringExpensesSection from "@/components/profile/RecurringExpensesSection";
-import ProfileSummary from "@/components/profile/ProfileSummary";
 import SavingsGoalSection from "@/components/profile/SavingsGoalSection";
 
 export default function Profile() {
@@ -26,7 +25,6 @@ export default function Profile() {
         {/* Fixed / Recurring expenses & Summary */}
         <div className="space-y-6">
           <RecurringExpensesSection />
-          <ProfileSummary />
         </div>
       </div>
     </div>

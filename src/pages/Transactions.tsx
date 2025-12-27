@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FilterableTransactionList from "@/components/transactions/FilterableTransactionList";
+import ImportTransactionsModal from "@/components/transactions/ImportTransactionsModal";
 
 export default function Transactions() {
   const { data, addTransaction, deleteTransaction } = useBudgetStore();
@@ -31,10 +32,10 @@ export default function Transactions() {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[600px] grid lg:grid-cols-12 gap-6">
+    <div className="min-h-[calc(100vh-8rem)] grid lg:grid-cols-12 gap-6">
        {/* Left: Add Form */}
        <div className="lg:col-span-4 space-y-6">
-          <Card className="border-none shadow-lg h-full flex flex-col bg-gradient-to-br from-card to-muted/20">
+          <Card className="shadow-lg bg-gradient-to-br from-card to-muted/20">
              <CardHeader>
                 <CardTitle>New Transaction</CardTitle>
                 <CardDescription>Record your daily spending or income</CardDescription>
@@ -89,18 +90,25 @@ export default function Transactions() {
                    </div>
                 </div>
 
-                <div className="pt-4 mt-auto">
+                <div className="pt-4">
                    <Button className="w-full h-12 text-base shadow-lg shadow-primary/20" onClick={handleAdd} size="lg">
                      Add {type === 'income' ? 'Income' : 'Expense'}
                    </Button>
                 </div>
              </CardContent>
           </Card>
+          
+          {/* Import Block - Separate compact card */}
+          <Card className="shadow-lg bg-gradient-to-br from-card to-muted/20">
+             <CardContent className="p-4">
+                <ImportTransactionsModal />
+             </CardContent>
+          </Card>
        </div>
 
        {/* Right: List */}
        <div className="lg:col-span-8 h-full min-h-[500px]">
-          <Card className="border-none shadow-sm h-full flex flex-col">
+          <Card className="shadow-lg h-full flex flex-col">
              <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                    <CardTitle>History</CardTitle>

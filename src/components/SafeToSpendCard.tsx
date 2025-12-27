@@ -4,6 +4,13 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface SafeToSpendProps {
   amount: number;
@@ -21,9 +28,23 @@ export default function SafeToSpendCard({
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <CardHeader className="pb-2 relative z-10">
         <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Safe to spend today
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Safe to spend today
+              </CardTitle>
+              <TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground/70 cursor-help hover:text-foreground transition-colors" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      Your "Safe to Spend" is calculated based on your Income minus Fixed Expenses, distributed over the remaining days of the month.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div className="size-8 rounded-full bg-emerald-100 flex items-center justify-center">
                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>

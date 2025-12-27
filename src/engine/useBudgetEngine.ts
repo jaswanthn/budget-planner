@@ -3,7 +3,7 @@ import {
   calculateSafeToSpend,
   getDaysElapsed,
   getDaysInMonth,
-  projectBucketSpend
+  projectBucketSpend,
 } from "./budgetEngine";
 
 export function useBudgetEngine(data: BudgetData) {
@@ -13,31 +13,24 @@ export function useBudgetEngine(data: BudgetData) {
   const elapsedDays = getDaysElapsed(today);
   const remainingDays = totalDays - elapsedDays;
 
-  const totalAllocated = data.buckets.reduce(
-    (sum, b) => sum + b.limit,
+  const totalIncome = data.income;
+  const totalFixedExpensesAmount = data.recurringExpenses.reduce(
+    (sum, b) => sum + b.amount,
     0
   );
 
-  const totalSpent = data.buckets.reduce(
-    (sum, b) => sum + b.spent,
-    0
-  );
+  const totalSpent = data.buckets.reduce((sum, b) => sum + b.spent, 0);
 
-  const totalRemaining = totalAllocated - totalSpent;
+  const totalRemaining = totalIncome - totalFixedExpensesAmount - totalSpent;
 
-  const safeToSpendToday = calculateSafeToSpend(
-    totalRemaining,
-    remainingDays
-  );
+  const safeToSpendToday = calculateSafeToSpend(totalRemaining, remainingDays);
 
   const bucketInsights = data.buckets.map((bucket) => ({
     ...bucket,
-    ...projectBucketSpend(bucket, elapsedDays, totalDays)
+    ...projectBucketSpend(bucket, elapsedDays, totalDays),
   }));
 
-  const overshootingBuckets = bucketInsights.filter(
-    (b) => b.overshoot > 0
-  );
+  const overshootingBuckets = bucketInsights.filter((b) => b.overshoot > 0);
 
   const monthStatus =
     overshootingBuckets.length === 0
@@ -52,6 +45,6 @@ export function useBudgetEngine(data: BudgetData) {
     remainingDays,
     monthStatus,
     bucketInsights,
-    overshootingBuckets
+    overshootingBuckets,
   };
 }
